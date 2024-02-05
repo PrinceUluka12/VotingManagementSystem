@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NLog;
 using VotingSystem.Data;
 using VotingSystem.Models;
+using VotingSystem.Models.DTO;
 using VotingSystem.Services.IServices;
 
 namespace VotingSystem.Services
@@ -8,11 +10,12 @@ namespace VotingSystem.Services
     public class VoterService : IVoterService
     {
         private readonly AppDbContext _db;
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
         public VoterService(AppDbContext db)
         {
                 _db = db;
         }
-        public async Task<(bool,string)> AddVoter(Voter voter)
+        public async Task<(bool,string)> AddVoter(AddVoterDto voter)
         {
             try
             {
@@ -21,6 +24,7 @@ namespace VotingSystem.Services
 
                 if (checkUserName != null)
                 {
+                    logger.Error($"{voter.UserName} - Username already Exists");
                     return (false, "Username Already Exists");
                 }else if(checkSSN != null)
                 {
@@ -28,7 +32,16 @@ namespace VotingSystem.Services
                 }
                 else
                 {
-                    await _db.Voters.AddAsync(voter);
+                    Voter newVoter = new Voter()
+                    {
+                        DOB =  voter.DOB,
+                        FirstName = voter.FirstName,
+                        LastName = voter.LastName,
+                        SSN = voter.SSN,
+                        UserName = voter.UserName,
+                        
+                    };
+                    await _db.Voters.AddAsync(newVoter);
                     await _db.SaveChangesAsync();
                     return (true, "Successfully Registered Voter");
                 }
@@ -36,7 +49,7 @@ namespace VotingSystem.Services
             catch (Exception ex)
             {
 
-                return (false,"");
+                return (false,ex.Message);
             }
         }
 
@@ -58,6 +71,20 @@ namespace VotingSystem.Services
             {
 
                 return false;
+            }
+        }
+
+        public async Task<(bool, List<Voter>)> GetAllVoters()
+        {
+            try
+            {
+                var data =  await _db.Voters.ToListAsync();
+                return (true,  data);
+            }
+            catch (Exception)
+            {
+
+                return (false, new List<Voter>());
             }
         }
 
